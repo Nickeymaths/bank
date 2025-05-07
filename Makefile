@@ -1,4 +1,4 @@
-.PHONY: postgres-up mysql-up postgres-down createdb dropdb migrate-up migrate-down sqlc test
+.PHONY: postgres-up mysql-up postgres-down createdb dropdb migrate-up migrate-down sqlc server mock test
 
 postgres-up:
 	docker run --name postgres12 --rm -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=123456 -d postgres:12-alpine
@@ -20,6 +20,12 @@ migrate-down:
 
 sqlc:
 	sqlc generate
+
+server:
+	go run main.go
+
+mock:
+	mockgen -destination db/mock/store.go -package mockdb github.com/Nickeymaths/bank/db/sqlc Store
 
 test:
 	go clean -testcache && go test -v -cover ./...
