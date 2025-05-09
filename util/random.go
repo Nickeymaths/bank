@@ -33,6 +33,6 @@ func RandomMoney() int64 {
 
 func RandomCurrency() string {
 	generator := rand.New(rand.NewSource(time.Now().UnixNano()))
-	currencies := []string{"VND", "RUP", "EUR", "US"}
+	currencies := []string{VND, RUP, EUR, USD}
 	return currencies[generator.Intn(len(currencies))]
 }
