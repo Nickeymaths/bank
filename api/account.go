@@ -7,28 +7,12 @@ import (
 
 	db "github.com/Nickeymaths/bank/db/sqlc"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 type createAccountReq struct {
 	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,currency"`
-}
-
-type listAccountReq struct {
-	PageID   int32 `form:"page_id" binding:"required,min=1"`
-	PageSize int32 `form:"page_size" binding:"required,min=1,max=10"`
-}
-
-type getAccountReq struct {
-	ID int64 `uri:"id" binding:"required,min=1"`
-}
-
-type updateAccountReq struct {
-	Amount int64 `json:"amount" binding:"required"`
-}
-
-type deleteAccountReq struct {
-	ID int64 `uri:"id" binding:"required,min=1"`
 }
 
 func (server *Server) createAccount(c *gin.Context) {
@@ -45,11 +29,22 @@ func (server *Server) createAccount(c *gin.Context) {
 		Balance:  0,
 	})
 	if err != nil {
+		if pqError, ok := err.(*pq.Error); ok {
+			switch pqError.Code.Name() {
+			case "unique_violation", "foreign_key_violation":
+				c.JSON(http.StatusForbidden, errorResponse(pqError))
+				return
+			}
+		}
 		c.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
 	c.JSON(http.StatusOK, account)
+}
+
+type getAccountReq struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
 }
 
 func (server *Server) getAccount(c *gin.Context) {
@@ -72,6 +67,10 @@ func (server *Server) getAccount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, account)
+}
+
+type updateAccountReq struct {
+	Amount int64 `json:"amount" binding:"required"`
 }
 
 func (server *Server) updateAccount(c *gin.Context) {
@@ -106,6 +105,10 @@ func (server *Server) updateAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
+type deleteAccountReq struct {
+	ID int64 `uri:"id" binding:"required,min=1"`
+}
+
 func (server *Server) deleteAccount(c *gin.Context) {
 	var req deleteAccountReq
 
@@ -126,6 +129,11 @@ func (server *Server) deleteAccount(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+type listAccountReq struct {
+	PageID   int32 `form:"page_id" binding:"required,min=1"`
+	PageSize int32 `form:"page_size" binding:"required,min=1,max=10"`
 }
 
 func (server *Server) listAccounts(c *gin.Context) {

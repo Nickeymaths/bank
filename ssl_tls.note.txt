@@ -1,0 +1,50 @@
+Keywords:
+
+Why TLS:
+- authentication: asymmetric cryptography
+- confidentiality: symmetric cryptography
+- Integrity: message authentication code
+
+cipher suite = set of algorithm that help secure a network connection
+cipher suite = key exchange alg, bulk encrypt alg, message authen code
+
+G
+SSL: Secure Socket Layer
+TLS: Transport Layer Secure
+MAC: message authentication code
+HMAC: hashed-based MAC
+GMAC:
+POLY1305:
+DHE: Diffie Hellman Ephemeral
+SHA: Secure Hashing Algorithm
+RSA: 
+EEC: Elliptic-Curve Cryptography
+ECDHE: Elliptic-Curve Diffie Hellman Ephemeral
+AEAD: Authentication encrypted association data
+KFD: Key derivation function
+HKDF: HMAC key derivation function
+IKM: Input key material
+CHACHA20:
+Nonce: authenticate user khi encrypt message
+AES-256-GCM: Advanced Encryption Standard Galois/Counter Mode
+Bulk encryption
+Module exponential problem
+Discreate logarithm problem
+
+Q
+Authentication vs Authorization
+Encrypted vs encode
+Symmetric vs Asymmetric Cryptographic alg
+- Symmetric: Authentication. E.g. ECS-256gcm, CHACHA20
+- Asymmetric: Key exchange. E.g. DHE, ECDHE
+What is salt?
+How shared key is exchanged safely? Diffie-Hellman alg?
+What is g primitive root module n: if all coprime of n is congruent with some
+g^k.
+What is module exponential problem?
+What does ephemeral mean? Ephemeral key: Use different key in each session (temporary)
+What does DHE mean? Use Diffie-Hellman + Ephemeral key (short-lived key)
+What is ECDHE? Use elliptic-curve trapdoor function instead of module-based
+like RSA. But Shor/s alg can break ECC by quantum computer easier than RSA.
+
+Trapdoor function
