@@ -2,10 +2,12 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
 	db "github.com/Nickeymaths/bank/db/sqlc"
+	"github.com/Nickeymaths/bank/token"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,13 +22,23 @@ func (server *Server) createTransfer(c *gin.Context) {
 	var req createTransferReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, errorResponse(err))
-	}
-
-	if !server.validateAccount(c, req.FromAccountID, req.Currency) {
 		return
 	}
 
-	if !server.validateAccount(c, req.ToAccountID, req.Currency) {
+	fromAccount, valid := server.validateAccount(c, req.FromAccountID, req.Currency)
+	if !valid {
+		return
+	}
+
+	authPayload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+	if fromAccount.Owner != authPayload.Username {
+		err := errors.New("from account doesn't belong to the authenticated user")
+		c.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	_, valid = server.validateAccount(c, req.ToAccountID, req.Currency)
+	if !valid {
 		return
 	}
 
@@ -38,26 +50,27 @@ func (server *Server) createTransfer(c *gin.Context) {
 	transfer, err := server.store.TransferTx(c, arg)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
 	}
 
 	c.JSON(http.StatusOK, transfer)
 }
 
-func (server *Server) validateAccount(c *gin.Context, accountID int64, currency string) bool {
+func (server *Server) validateAccount(c *gin.Context, accountID int64, currency string) (db.Account, bool) {
 	account, err := server.store.GetAccount(c, accountID)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, errorResponse(err))
-		return false
+		return account, false
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse(err))
-		return false
+		return account, false
 	}
 
 	if currency != account.Currency {
 		err := fmt.Errorf("currency [%v] miss match: expected %v found %v", accountID, currency, account.Currency)
 		c.JSON(http.StatusBadRequest, errorResponse(err))
-		return false
+		return account, false
 	}
-	return true
+	return account, true
 }

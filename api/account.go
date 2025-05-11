@@ -2,16 +2,17 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
 	db "github.com/Nickeymaths/bank/db/sqlc"
+	"github.com/Nickeymaths/bank/token"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
 )
 
 type createAccountReq struct {
-	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,currency"`
 }
 
@@ -23,8 +24,10 @@ func (server *Server) createAccount(c *gin.Context) {
 		return
 	}
 
+	payload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+
 	account, err := server.store.CreateAccount(c, db.CreateAccountParams{
-		Owner:    req.Owner,
+		Owner:    payload.Username,
 		Currency: req.Currency,
 		Balance:  0,
 	})
@@ -66,6 +69,13 @@ func (server *Server) getAccount(c *gin.Context) {
 		return
 	}
 
+	payload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+	if account.Owner != payload.Username {
+		err := errors.New("account is not belong to authorized user")
+		c.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
 	c.JSON(http.StatusOK, account)
 }
 
@@ -88,7 +98,25 @@ func (server *Server) updateAccount(c *gin.Context) {
 		return
 	}
 
-	account, err := server.store.UpdateAccountBalance(c, db.UpdateAccountBalanceParams{
+	payload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+	account, err := server.store.GetAccount(c, int64(id))
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	if account.Owner != payload.Username {
+		err := errors.New("account is not belong to authorized user")
+		c.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	account, err = server.store.UpdateAccountBalance(c, db.UpdateAccountBalanceParams{
 		ID:     int64(id),
 		Amount: req.Amount,
 	})
@@ -117,7 +145,25 @@ func (server *Server) deleteAccount(c *gin.Context) {
 		return
 	}
 
-	err := server.store.DeleteAccount(c, req.ID)
+	payload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+	account, err := server.store.GetAccount(c, req.ID)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, errorResponse(err))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	if account.Owner != payload.Username {
+		err := errors.New("account is not belong to authorized user")
+		c.JSON(http.StatusUnauthorized, errorResponse(err))
+		return
+	}
+
+	err = server.store.DeleteAccount(c, req.ID)
 
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, errorResponse(err))
@@ -144,7 +190,10 @@ func (server *Server) listAccounts(c *gin.Context) {
 		return
 	}
 
+	payload := c.MustGet(authorizedPayloadKey).(*token.Payload)
+
 	accounts, err := server.store.ListAccounts(c, db.ListAccountsParams{
+		Owner:  payload.Username,
 		Limit:  int64(req.PageSize),
 		Offset: int64(req.PageID-1) * int64(req.PageSize),
 	})
