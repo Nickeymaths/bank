@@ -15,16 +15,16 @@ run:
 	docker run -d -p 4000:4000 --name bank --network bank-network --rm -e GIN_MOD=release -e DB_SOURCE='postgres://root:123456@postgres12/bank?sslmode=disable' bank:v1
 
 migrate-up:
-	migrate -path db/migration -database "postgres://root:123456@postgres12/bank?sslmode=disable" -verbose up
+	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose up
 
 migrate-down:
-	migrate -path db/migration -database "postgres://root:123456@postgres12/bank?sslmode=disable" -verbose down
+	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose down
 
 migrate-up1:
-	migrate -path db/migration -database "postgres://root:123456@postgres12/bank?sslmode=disable" -verbose up 1
+	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose up 1
 
 migrate-down1:
-	migrate -path db/migration -database "postgres://root:123456@postgres12/bank?sslmode=disable" -verbose down 1
+	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose down 1
 
 sqlc:
 	sqlc generate
