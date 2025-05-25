@@ -25,13 +25,13 @@ func NewPayload(username string, duration time.Duration) (*Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	payload := Payload{
+	payload := &Payload{
 		ID:        tokenID,
 		Username:  username,
 		IssuedAt:  time.Now(),
 		ExpiredAt: time.Now().Add(duration),
 	}
-	return &payload, nil
+	return payload, nil
 }
 
 func (payload *Payload) Valid() error {

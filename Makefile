@@ -1,18 +1,11 @@
-.PHONY: postgres-up mysql-up postgres-down createdb dropdb migrate-up migrate-down sqlc server mockdb test
-
-postgres-up:
-	docker run --name postgres12 --network bank-network --rm -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=123456 -d postgres:12-alpine
-
-postgres-down:
-	docker stop postgres12
+postgres:
+	docker run --name postgres12 --rm -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=123456 -d postgres:12-alpine
 
 createdb:
 	docker exec postgres12 createdb --user=root --owner=root bank
 
 dropdb:
 	docker exec postgres12 dropdb --user=root bank
-run:
-	docker run -d -p 4000:4000 --name bank --network bank-network --rm -e GIN_MOD=release -e DB_SOURCE='postgres://root:123456@postgres12/bank?sslmode=disable' bank:v1
 
 migrate-up:
 	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose up
@@ -20,11 +13,11 @@ migrate-up:
 migrate-down:
 	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose down
 
-migrate-up1:
-	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose up 1
+dbdocs:
+	dbdocs build doc/db.dbml --project bank
 
-migrate-down1:
-	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose down 1
+dbschema:
+	dbml2sql --postgres -o doc/schema.sql doc/db.dbml
 
 sqlc:
 	sqlc generate
@@ -32,8 +25,19 @@ sqlc:
 server:
 	go run main.go
 
-mockdb:
+mock:
 	mockgen -destination db/mock/store.go -package mockdb github.com/Nickeymaths/bank/db/sqlc Store
 
 test:
 	go clean -testcache && go test -v -cover ./...
+
+proto:
+	rm -r pb/*.go
+	protoc --proto_path=proto --go_out=pb --go_opt=paths=source_relative \
+    --go-grpc_out=pb --go-grpc_opt=paths=source_relative \
+    proto/*.proto
+
+evans:
+	evans --host localhost --port 5000 -r repl
+
+.PHONY: postgres mysql-up createdb dropdb migrate-up migrate-down dbdocs dbschema sqlc server mockdb test proto evans

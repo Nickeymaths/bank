@@ -3,12 +3,14 @@ package api
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
 	db "github.com/Nickeymaths/bank/db/sqlc"
 	"github.com/Nickeymaths/bank/util"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
@@ -77,8 +79,12 @@ type loginReq struct {
 }
 
 type loginUserResp struct {
-	Token string   `json:"token"`
-	User  userResp `json:"user"`
+	SessionID             uuid.UUID `json:"session_id"`
+	AccessToken           string    `json:"access_token"`
+	AccessTokenExpiresAt  time.Time `json:"access_token_expires_at"`
+	RefreshToken          string    `json:"refresh_token"`
+	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
+	User                  userResp  `json:"user"`
 }
 
 func (server *Server) loginUser(c *gin.Context) {
@@ -104,14 +110,39 @@ func (server *Server) loginUser(c *gin.Context) {
 		return
 	}
 
-	token, err := server.tokenMaker.CreateToken(req.Username, server.config.AccessTokenDuration)
+	accessToken, accessTokenPayload, err := server.tokenMaker.CreateToken(req.Username, server.config.AccessTokenDuration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	refreshToken, refreshTokenPayload, err := server.tokenMaker.CreateToken(req.Username, server.config.RefreshTokenDuration)
+	log.Println(server.config.AccessTokenDuration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, errorResponse(err))
+		return
+	}
+
+	session, err := server.store.CreateSession(c, db.CreateSessionParams{
+		ID:           refreshTokenPayload.ID,
+		Username:     refreshTokenPayload.Username,
+		RefreshToken: refreshToken,
+		UserAgent:    c.Request.UserAgent(),
+		ClientIp:     c.ClientIP(),
+		IsBlocked:    false,
+		ExpiresAt:    refreshTokenPayload.ExpiredAt,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, errorResponse(err))
 		return
 	}
 
 	c.JSON(http.StatusOK, loginUserResp{
-		Token: token,
-		User:  NewUserResponse(user),
+		SessionID:             session.ID,
+		AccessToken:           accessToken,
+		AccessTokenExpiresAt:  accessTokenPayload.ExpiredAt,
+		RefreshToken:          refreshToken,
+		RefreshTokenExpiresAt: refreshTokenPayload.ExpiredAt,
+		User:                  NewUserResponse(user),
 	})
 }
