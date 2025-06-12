@@ -1,18 +1,22 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net"
+	"net/http"
 
 	"github.com/Nickeymaths/bank/api"
 	db "github.com/Nickeymaths/bank/db/sqlc"
 	"github.com/Nickeymaths/bank/gapi"
 	"github.com/Nickeymaths/bank/pb"
 	"github.com/Nickeymaths/bank/util"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func main() {
@@ -27,6 +31,7 @@ func main() {
 	}
 
 	store := db.NewStore(conn)
+	go runGatewayServer(config, store)
 	runGRPCServer(config, store)
 }
 
@@ -60,6 +65,46 @@ func runGRPCServer(config util.Config, store db.Store) {
 
 	log.Printf("Start gRPC server at %s", listener.Addr().String())
 	err = grpcServer.Serve(listener)
+	if err != nil {
+		log.Fatal("failed to start server")
+	}
+}
+
+func runGatewayServer(config util.Config, store db.Store) {
+	server, err := gapi.NewServer(config, store)
+	if err != nil {
+		log.Fatal("failed to created server: ", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Register grpc endpoint
+	grpcMux := runtime.NewServeMux(
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{
+			MarshalOptions: protojson.MarshalOptions{
+				UseProtoNames: true,
+			},
+			UnmarshalOptions: protojson.UnmarshalOptions{
+				DiscardUnknown: true,
+			},
+		}),
+	)
+	err = pb.RegisterBankHandlerServer(ctx, grpcMux, server)
+	if err != nil {
+		log.Fatal("failed to register grpc server:", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", grpcMux)
+
+	listener, err := net.Listen("tcp", config.HTTPServerAddress)
+	if err != nil {
+		log.Fatal("can't create listener", err)
+	}
+
+	log.Printf("Start Gateway server at %s", listener.Addr().String())
+	err = http.Serve(listener, mux)
 	if err != nil {
 		log.Fatal("failed to start server")
 	}
