@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -12,6 +13,9 @@ import (
 	"github.com/Nickeymaths/bank/gapi"
 	"github.com/Nickeymaths/bank/pb"
 	"github.com/Nickeymaths/bank/util"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
@@ -29,6 +33,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to connect database: ", err)
 	}
+
+	// Run db migration
+	err = dbMigration(config)
+	if err != nil {
+		log.Fatal("failed to run db migration")
+	}
+	log.Println("db migrate successfully")
 
 	store := db.NewStore(conn)
 	go runGatewayServer(config, store)
@@ -108,4 +119,16 @@ func runGatewayServer(config util.Config, store db.Store) {
 	if err != nil {
 		log.Fatal("failed to start server")
 	}
+}
+
+func dbMigration(config util.Config) error {
+	m, err := migrate.New(config.SourceURL, config.DBSource)
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return err
+	}
+	err = m.Up()
+	if err != nil {
+		return err
+	}
+	return nil
 }
