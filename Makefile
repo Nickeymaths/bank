@@ -22,6 +22,9 @@ dbschema:
 sqlc:
 	sqlc generate
 
+redis:
+	docker run -d --rm --name redis -p 6379:6379 redis:8-alpine3.21
+
 server:
 	go run main.go
 
