@@ -1,11 +1,11 @@
 postgres:
-	docker run --name postgres12 --rm -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=123456 -d postgres:12-alpine
+	docker run --name postgres --rm -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=123456 -d postgres:12-alpine
 
 createdb:
-	docker exec postgres12 createdb --user=root --owner=root bank
+	docker exec postgres createdb --user=root --owner=root bank
 
 dropdb:
-	docker exec postgres12 dropdb --user=root bank
+	docker exec postgres dropdb --user=root bank
 
 migrate-up:
 	migrate -path db/migration -database "postgres://root:123456@localhost/bank?sslmode=disable" -verbose up

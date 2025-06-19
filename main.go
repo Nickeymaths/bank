@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hibiken/asynq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/Nickeymaths/bank/gapi"
 	"github.com/Nickeymaths/bank/pb"
 	"github.com/Nickeymaths/bank/util"
+	"github.com/Nickeymaths/bank/worker"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -48,9 +50,15 @@ func main() {
 	}
 	log.Info().Msg("db migrate successfully")
 
+	redisOpts := asynq.RedisClientOpt{
+		Addr: config.RedisAddress,
+	}
+	taskDistributor := worker.NewRedisTaskDistributor(redisOpts)
+
 	store := db.NewStore(conn)
-	go runGatewayServer(config, store)
-	runGRPCServer(config, store)
+	go runTaskProcessor(redisOpts, store)
+	go runGatewayServer(config, store, taskDistributor)
+	runGRPCServer(config, store, taskDistributor)
 }
 
 func runGinServer(config util.Config, store db.Store) {
@@ -65,8 +73,16 @@ func runGinServer(config util.Config, store db.Store) {
 	}
 }
 
-func runGRPCServer(config util.Config, store db.Store) {
-	server, err := gapi.NewServer(config, store)
+func runTaskProcessor(redisOpts asynq.RedisClientOpt, store db.Store) {
+	taskProcessor := worker.NewRedisTaskProcessor(redisOpts, store)
+	err := taskProcessor.Start()
+	if err != nil {
+		log.Error().Err(err).Msg("failed to start task processor")
+	}
+}
+
+func runGRPCServer(config util.Config, store db.Store, taskDistributor worker.TaskDistributor) {
+	server, err := gapi.NewServer(config, store, taskDistributor)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to created server: ")
 	}
@@ -89,8 +105,8 @@ func runGRPCServer(config util.Config, store db.Store) {
 	}
 }
 
-func runGatewayServer(config util.Config, store db.Store) {
-	server, err := gapi.NewServer(config, store)
+func runGatewayServer(config util.Config, store db.Store, taskDistributor worker.TaskDistributor) {
+	server, err := gapi.NewServer(config, store, taskDistributor)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to created server: ")
 	}
