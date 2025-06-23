@@ -1,9 +1,8 @@
 package db
 
 import (
-	"database/sql"
-
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 const (
@@ -11,12 +10,11 @@ const (
 	UniqueViolation     = "23505"
 )
 
-var ErrRecordNotFound = sql.ErrNoRows
-
-var ErrUniqueViolation = &pq.Error{
+var ErrNoRows = pgx.ErrNoRows
+var ErrUniqueViolation = &pgconn.PgError{
 	Code: UniqueViolation,
 }
 
-var ErrForeignKeyViolation = &pq.Error{
+var ErrForeignKeyViolation = &pgconn.PgError{
 	Code: ForeignKeyViolation,
 }

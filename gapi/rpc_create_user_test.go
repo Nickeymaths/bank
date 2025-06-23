@@ -2,7 +2,6 @@ package gapi
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"reflect"
 	"testing"
@@ -125,7 +124,7 @@ func TestCreateUserAPI(t *testing.T) {
 				store.EXPECT().
 					CreateUserTx(gomock.Any(), gomock.Any()).
 					Times(1).
-					Return(db.CreateUserTxResult{}, sql.ErrConnDone)
+					Return(db.CreateUserTxResult{}, db.ErrForeignKeyViolation)
 				taskDistributor.EXPECT().
 					DistributeTaskVeriyEmail(gomock.Any(), gomock.Any(), gomock.Any()).
 					Times(0)

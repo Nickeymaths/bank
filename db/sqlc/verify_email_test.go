@@ -15,7 +15,7 @@ func TestCreateVerifyEmail(t *testing.T) {
 		Email:      user.Email,
 		SecretCode: util.RandomString(32),
 	}
-	verifyEmail, err := testQuery.CreateVerifyEmail(context.Background(), arg)
+	verifyEmail, err := testStore.CreateVerifyEmail(context.Background(), arg)
 	require.NoError(t, err)
 
 	require.NotEmpty(t, verifyEmail.ID)
@@ -35,10 +35,10 @@ func TestUpdateVerifyStatus(t *testing.T) {
 		Email:      user.Email,
 		SecretCode: util.RandomString(32),
 	}
-	verifyEmail, err := testQuery.CreateVerifyEmail(context.Background(), arg)
+	verifyEmail, err := testStore.CreateVerifyEmail(context.Background(), arg)
 	require.NoError(t, err)
 
-	updatedVerifyEmail, err := testQuery.UpdateVerifyStatus(context.Background(), UpdateVerifyStatusParams{
+	updatedVerifyEmail, err := testStore.UpdateVerifyStatus(context.Background(), UpdateVerifyStatusParams{
 		ID:         verifyEmail.ID,
 		SecretCode: verifyEmail.SecretCode,
 	})

@@ -10,8 +10,6 @@ import (
 )
 
 func TestTransferTx(t *testing.T) {
-	testStore := NewStore(testDB)
-
 	account1 := CreateRandomAccount(t)
 	account2 := CreateRandomAccount(t)
 
@@ -118,8 +116,6 @@ func TestTransferTx(t *testing.T) {
 }
 
 func TestTransferTxDeadLock(t *testing.T) {
-	testStore := NewStore(testDB)
-
 	account1 := CreateRandomAccount(t)
 	account2 := CreateRandomAccount(t)
 
