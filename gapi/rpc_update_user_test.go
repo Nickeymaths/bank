@@ -64,7 +64,7 @@ func TestUpdateUserAPI(t *testing.T) {
 					Return(updatedUser, nil)
 			},
 			buildContext: func(t *testing.T, tokenMarker token.Maker) context.Context {
-				return newContextWithBearerTokenfunc(t, user.Username, 15*time.Minute, tokenMarker)
+				return newContextWithBearerTokenfunc(t, user.Username, util.BankRole, 15*time.Minute, tokenMarker)
 			},
 			checkResponse: func(t *testing.T, response *pb.UpdateUserResponse, err error) {
 				require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestUpdateUserAPI(t *testing.T) {
 					Return(updatedUser, nil)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
-				return newContextWithBearerTokenfunc(t, user.Username, time.Minute, tokenMaker)
+				return newContextWithBearerTokenfunc(t, user.Username, util.BankRole, time.Minute, tokenMaker)
 			},
 			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.NoError(t, err)
@@ -117,6 +117,28 @@ func TestUpdateUserAPI(t *testing.T) {
 				require.Equal(t, user.Username, updatedUser.Username)
 				require.Equal(t, newOwner, updatedUser.FullName)
 				require.Equal(t, newEmail, updatedUser.Email)
+			},
+		},
+		{
+			name: "DepositorCannotUpdateUserInfo",
+			req: &pb.UpdateUserRequest{
+				Username: user.Username,
+				FullName: &newOwner,
+				Email:    &newEmail,
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().
+					UpdateUser(gomock.Any(), gomock.Any()).
+					Times(0)
+			},
+			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
+				return newContextWithBearerTokenfunc(t, user.Username, util.DepositoryRole, time.Minute, tokenMaker)
+			},
+			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
+				require.Error(t, err)
+				st, ok := status.FromError(err)
+				require.True(t, ok)
+				require.Equal(t, codes.PermissionDenied, st.Code())
 			},
 		},
 		{
@@ -133,7 +155,7 @@ func TestUpdateUserAPI(t *testing.T) {
 					Return(db.User{}, db.ErrNoRows)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
-				return newContextWithBearerTokenfunc(t, user.Username, time.Minute, tokenMaker)
+				return newContextWithBearerTokenfunc(t, user.Username, util.BankRole, time.Minute, tokenMaker)
 			},
 			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.Error(t, err)
@@ -155,7 +177,7 @@ func TestUpdateUserAPI(t *testing.T) {
 					Times(0)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
-				return newContextWithBearerTokenfunc(t, user.Username, time.Minute, tokenMaker)
+				return newContextWithBearerTokenfunc(t, user.Username, util.BankRole, time.Minute, tokenMaker)
 			},
 			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.Error(t, err)
@@ -177,7 +199,7 @@ func TestUpdateUserAPI(t *testing.T) {
 					Times(0)
 			},
 			buildContext: func(t *testing.T, tokenMaker token.Maker) context.Context {
-				return newContextWithBearerTokenfunc(t, user.Username, -time.Minute, tokenMaker)
+				return newContextWithBearerTokenfunc(t, user.Username, util.BankRole, -time.Minute, tokenMaker)
 			},
 			checkResponse: func(t *testing.T, res *pb.UpdateUserResponse, err error) {
 				require.Error(t, err)

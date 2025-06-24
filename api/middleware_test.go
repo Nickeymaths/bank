@@ -19,9 +19,10 @@ func addAuthorization(
 	tokenMarker token.Maker,
 	tokenType string,
 	username string,
+	role string,
 	duration time.Duration,
 ) {
-	token, _, err := tokenMarker.CreateToken(username, duration)
+	token, _, err := tokenMarker.CreateToken(username, role, duration)
 	require.NoError(t, err)
 	tokenField := fmt.Sprintf("%s %s", tokenType, token)
 	request.Header.Add(authorizedHeaderKey, tokenField)
@@ -38,7 +39,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "OK",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, beaserTokenType, username, time.Minute)
+				addAuthorization(t, request, tokenMaker, beaserTokenType, username, util.DepositoryRole, time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -55,7 +56,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "UnsupportedTokenType",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, "unsupported", username, time.Minute)
+				addAuthorization(t, request, tokenMaker, "unsupported", username, util.DepositoryRole, time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -64,7 +65,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "InvalidTokenField",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, "", username, time.Minute)
+				addAuthorization(t, request, tokenMaker, "", username, util.DepositoryRole, time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
@@ -73,7 +74,7 @@ func TestMiddleware(t *testing.T) {
 		{
 			name: "ExpiredToken",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
-				addAuthorization(t, request, tokenMaker, beaserTokenType, username, -time.Minute)
+				addAuthorization(t, request, tokenMaker, beaserTokenType, username, util.DepositoryRole, -time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)

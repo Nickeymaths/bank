@@ -26,8 +26,8 @@ func (server *Server) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest)
 		return nil, unauthorizedError(err)
 	}
 
-	if payload.Username != req.GetUsername() {
-		return nil, status.Errorf(codes.PermissionDenied, "request user is not authorized user: %v", err.Error())
+	if payload.Role != util.BankRole || payload.Username != req.GetUsername() {
+		return nil, status.Errorf(codes.PermissionDenied, "request user is not authorized user")
 	}
 
 	arg := db.UpdateUserParams{
